@@ -130,11 +130,32 @@ La app utiliza un diseño **Bento Grid** con:
 
 ```
 pet-monitor/
-├── App.js              # Componente principal (1400+ líneas)
-├── app.json            # Configuración de Expo
-├── package.json        # Dependencias
-├── babel.config.js     # Configuración de Babel
+├── App.js                  # Componente principal
+├── app.json                # Configuración de Expo
+├── package.json            # Dependencias
+├── babel.config.js         # Configuración de Babel
+├── utils/
+│   ├── index.js            # Exportaciones centralizadas
+│   ├── colors.js           # Paleta de colores del tema
+│   ├── config.js           # Configuración (API, umbrales, layout)
+│   └── helpers.js          # Funciones helper (formateo, status)
 └── README.md
+```
+
+### 📦 Utils disponibles
+
+```javascript
+// Importar desde utils
+import { 
+  COLORS,           // Paleta de colores
+  API_URL,          // URL del API
+  POLLING_INTERVAL, // Intervalo de polling
+  ALERT_THRESHOLDS, // Umbrales de alerta
+  getPetEmoji,      // 🐶 Emoji por tipo de mascota
+  getTempStatus,    // Estado visual de temperatura
+  getWaterStatus,   // Estado visual de agua
+  formatTemp,       // Formatear temperatura
+} from './utils';
 ```
 
 ## 🔔 Sistema de Notificaciones
