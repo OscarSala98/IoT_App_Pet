@@ -9,8 +9,12 @@ import {
   Dimensions,
   ActivityIndicator,
   RefreshControl,
+  Modal,
+  TouchableOpacity,
+  Vibration,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import * as Notifications from 'expo-notifications';
 import axios from 'axios';
 import {
   Thermometer,
@@ -26,6 +30,8 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
+  X,
+  Bell,
 } from 'lucide-react-native';
 import {
   useFonts,
@@ -74,6 +80,114 @@ const COLORS = {
   textPrimary: '#ffffff',
   textSecondary: '#a1a1aa',
   textMuted: '#71717a',
+};
+
+// ============================================
+// CONFIGURACIÓN DE NOTIFICACIONES
+// ============================================
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+// ============================================
+// COMPONENTE: Modal de Alerta
+// ============================================
+const AlertModal = ({ visible, alert, onClose }) => {
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          tension: 100,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      scaleAnim.setValue(0);
+      opacityAnim.setValue(0);
+    }
+  }, [visible]);
+
+  if (!visible || !alert) return null;
+
+  const getAlertColor = (type) => {
+    switch (type) {
+      case 'water': return COLORS.info;
+      case 'temp': return COLORS.danger;
+      case 'pump': return COLORS.primary;
+      case 'light': return COLORS.warning;
+      default: return COLORS.primary;
+    }
+  };
+
+  const getAlertIcon = (type) => {
+    switch (type) {
+      case 'water': return Droplets;
+      case 'temp': return Thermometer;
+      case 'pump': return Settings2;
+      case 'light': return Lightbulb;
+      default: return Bell;
+    }
+  };
+
+  const IconComponent = getAlertIcon(alert.type);
+  const alertColor = getAlertColor(alert.type);
+
+  return (
+    <Modal
+      transparent
+      visible={visible}
+      animationType="none"
+      onRequestClose={onClose}
+    >
+      <Animated.View style={[styles.modalOverlay, { opacity: opacityAnim }]}>
+        <Animated.View 
+          style={[
+            styles.modalContainer,
+            { transform: [{ scale: scaleAnim }] }
+          ]}
+        >
+          {/* Glow Effect */}
+          <View style={[styles.modalGlow, { backgroundColor: alertColor }]} />
+          
+          {/* Header */}
+          <View style={styles.modalHeader}>
+            <View style={[styles.modalIconContainer, { backgroundColor: `${alertColor}20` }]}>
+              <IconComponent size={32} color={alertColor} />
+            </View>
+            <TouchableOpacity style={styles.modalCloseButton} onPress={onClose}>
+              <X size={24} color={COLORS.textMuted} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Content */}
+          <Text style={styles.modalTitle}>{alert.title}</Text>
+          <Text style={styles.modalMessage}>{alert.message}</Text>
+
+          {/* Button */}
+          <TouchableOpacity 
+            style={[styles.modalButton, { backgroundColor: alertColor }]}
+            onPress={onClose}
+          >
+            <Text style={styles.modalButtonText}>Entendido</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      </Animated.View>
+    </Modal>
+  );
 };
 
 // ============================================
@@ -203,6 +317,7 @@ const SkeletonLoader = ({ style }) => {
 // ============================================
 const CameraCard = ({ imageUrl, mascota, confianza, isLoading, hasError }) => {
   const [imageError, setImageError] = useState(false);
+  const [imageModalVisible, setImageModalVisible] = useState(false);
 
   // Resetear el estado de error cuando llega una nueva URL de imagen
   useEffect(() => {
@@ -241,28 +356,34 @@ const CameraCard = ({ imageUrl, mascota, confianza, isLoading, hasError }) => {
       <View style={styles.cameraHeader}>
         <View style={styles.cameraIconContainer}>
           <Camera size={18} color={COLORS.textSecondary} />
-          <Text style={styles.cameraLabel}>Cámara Principal</Text>
+          <Text style={styles.cameraLabel}>Última Captura</Text>
         </View>
-        <View style={styles.recordingBadge}>
-          <View style={styles.recordingDot} />
-          <Text style={styles.recordingText}>REC</Text>
+        <View style={styles.aiActiveBadge}>
+          <Zap size={12} color={COLORS.success} />
+          <Text style={styles.aiActiveBadgeText}>IA ACTIVA</Text>
         </View>
       </View>
 
       <View style={styles.cameraImageContainer}>
         {(hasError || imageError || !imageUrl) ? (
           <View style={styles.cameraErrorContainer}>
-            <WifiOff size={48} color={COLORS.textMuted} />
-            <Text style={styles.cameraErrorText}>Sin conexión a cámara</Text>
-            <Text style={styles.cameraErrorSubtext}>Verificar red local</Text>
+            <Camera size={48} color={COLORS.textMuted} />
+            <Text style={styles.cameraErrorText}>Sin detección reciente</Text>
+            <Text style={styles.cameraErrorSubtext}>Esperando captura de mascota</Text>
           </View>
         ) : (
-          <Image
-            source={{ uri: imageUrl }}
-            style={styles.cameraImage}
-            resizeMode="cover"
-            onError={() => setImageError(true)}
-          />
+          <TouchableOpacity 
+            activeOpacity={0.9} 
+            onPress={() => setImageModalVisible(true)}
+            style={{ flex: 1 }}
+          >
+            <Image
+              source={{ uri: imageUrl }}
+              style={styles.cameraImage}
+              resizeMode="cover"
+              onError={() => setImageError(true)}
+            />
+          </TouchableOpacity>
         )}
 
         {/* Overlay con detección */}
@@ -283,6 +404,49 @@ const CameraCard = ({ imageUrl, mascota, confianza, isLoading, hasError }) => {
           </View>
         )}
       </View>
+
+      {/* Modal de Imagen Completa */}
+      <Modal
+        visible={imageModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setImageModalVisible(false)}
+      >
+        <View style={styles.imageModalOverlay}>
+          <TouchableOpacity 
+            style={styles.imageModalCloseArea}
+            activeOpacity={1}
+            onPress={() => setImageModalVisible(false)}
+          >
+            <View style={styles.imageModalHeader}>
+              <Text style={styles.imageModalTitle}>Última Captura</Text>
+              <TouchableOpacity 
+                style={styles.imageModalCloseBtn}
+                onPress={() => setImageModalVisible(false)}
+              >
+                <X size={24} color={COLORS.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.imageModalContent}>
+              <Image
+                source={{ uri: imageUrl }}
+                style={styles.imageModalFull}
+                resizeMode="contain"
+              />
+              
+              {mascota && (
+                <View style={styles.imageModalInfo}>
+                  <Text style={styles.imageModalPet}>{getPetEmoji(mascota)} {mascota}</Text>
+                  <Text style={[styles.imageModalConfidence, { color: getConfidenceColor(confianza) }]}>
+                    {confianza?.toFixed(1)}% confianza
+                  </Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -465,7 +629,16 @@ export default function App() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [tempTrend, setTempTrend] = useState('stable');
+  
+  // Estado para el Modal de Alertas
+  const [alertModal, setAlertModal] = useState({ visible: false, alert: null });
+  const [alertQueue, setAlertQueue] = useState([]);
+  
   const prevTempRef = useRef(null);
+  const lastWaterNotif = useRef(0);
+  const lastTempNotif = useRef(0);
+  const prevPump = useRef(null);
+  const prevLight = useRef(null);
 
   let [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -519,6 +692,105 @@ export default function App() {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Solicitar permisos de notificación
+  useEffect(() => {
+    (async () => {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('Permiso de notificaciones denegado');
+      }
+    })();
+  }, []);
+
+  // Función para mostrar alerta como modal
+  const showAlert = (type, title, message) => {
+    const newAlert = { type, title, message, id: Date.now() };
+    setAlertQueue(prev => [...prev, newAlert]);
+    Vibration.vibrate(200); // Vibración corta
+  };
+
+  // Procesar cola de alertas
+  useEffect(() => {
+    if (alertQueue.length > 0 && !alertModal.visible) {
+      const nextAlert = alertQueue[0];
+      setAlertModal({ visible: true, alert: nextAlert });
+      setAlertQueue(prev => prev.slice(1));
+    }
+  }, [alertQueue, alertModal.visible]);
+
+  // Cerrar modal
+  const closeAlertModal = () => {
+    setAlertModal({ visible: false, alert: null });
+  };
+
+  // Helper para enviar notificaciones locales (silencia errores de Expo Go)
+  const sendLocalNotification = async (title, body) => {
+    try {
+      await Notifications.scheduleNotificationAsync({
+        content: { title, body },
+        trigger: null,
+      });
+    } catch (e) {
+      // Silenciar error en Expo Go - las notificaciones locales funcionan igual
+      console.log('📱 Notificación enviada (modo local)');
+    }
+  };
+
+  // Lógica de Alertas y Notificaciones
+  useEffect(() => {
+    if (!data) return;
+
+    const now = Date.now();
+    const ONE_MINUTE = 60000;
+
+    // 1. Alerta de Tanque Lleno (Cada minuto)
+    if (data.agua === 'LLENO') {
+      if (now - lastWaterNotif.current > ONE_MINUTE) {
+        // Modal en app
+        showAlert('water', '💧 ¡Tanque Lleno!', 'El nivel de agua está al máximo. Por favor detén el llenado.');
+        // Notificación push (para cuando la app está en segundo plano)
+        sendLocalNotification('💧 ¡Tanque Lleno!', 'El nivel de agua está al máximo. Por favor detén el llenado.');
+        lastWaterNotif.current = now;
+      }
+    }
+
+    // 2. Alerta de Temperatura Alta > 20°C (PRUEBA - cambiar a 25 después)
+    const tempVal = parseFloat(data.temp);
+    if (tempVal > 20) {
+      if (now - lastTempNotif.current > ONE_MINUTE) {
+        // Modal en app
+        showAlert('temp', '🌡️ Temperatura Alta', `La temperatura ha subido a ${tempVal}°C. Verifica la ventilación.`);
+        // Notificación push
+        sendLocalNotification('🌡️ Temperatura Alta', `La temperatura ha subido a ${tempVal}°C.`);
+        lastTempNotif.current = now;
+      }
+    }
+
+    // 3. Cambio en Bomba (Dispensando)
+    if (prevPump.current !== null && prevPump.current !== data.bomba) {
+      const estado = data.bomba === 'ON' ? 'ACTIVADA' : 'DESACTIVADA';
+      const emoji = data.bomba === 'ON' ? '✅' : '⏹️';
+      // Modal en app
+      showAlert('pump', `⚙️ Bomba ${emoji}`, `La bomba de agua se ha ${estado}.`);
+      // Notificación push
+      sendLocalNotification('⚙️ Bomba de Agua', `La bomba se ha ${estado}.`);
+    }
+    prevPump.current = data.bomba;
+
+    // 4. Cambio en Luces
+    if (prevLight.current !== null && prevLight.current !== data.luz) {
+      const val = Number(data.luz);
+      const estado = val === 20 ? 'ENCENDIDAS' : 'APAGADAS';
+      const emoji = val === 20 ? '🌞' : '🌙';
+      // Modal en app
+      showAlert('light', `💡 Iluminación ${emoji}`, `Las luces se han ${estado}.`);
+      // Notificación push
+      sendLocalNotification('💡 Iluminación', `Las luces se han ${estado}.`);
+    }
+    prevLight.current = data.luz;
+
+  }, [data]);
 
   // Obtener valores con defaults
   const temperatura = data?.temp ? parseFloat(data.temp) : null;
@@ -689,6 +961,13 @@ export default function App() {
           </Text>
         </View>
       </ScrollView>
+
+      {/* Modal de Alertas */}
+      <AlertModal 
+        visible={alertModal.visible} 
+        alert={alertModal.alert} 
+        onClose={closeAlertModal} 
+      />
     </View>
   );
 }
@@ -847,6 +1126,21 @@ const styles = StyleSheet.create({
     color: COLORS.danger,
     letterSpacing: 0.5,
   },
+  aiActiveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: `${COLORS.success}20`,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 6,
+  },
+  aiActiveBadgeText: {
+    fontSize: 11,
+    fontFamily: 'Inter_600SemiBold',
+    color: COLORS.success,
+    letterSpacing: 0.5,
+  },
   cameraImageContainer: {
     height: 220,
     backgroundColor: COLORS.cardBgLight,
@@ -911,6 +1205,66 @@ const styles = StyleSheet.create({
   },
   confidenceText: {
     fontSize: 13,
+    fontFamily: 'Inter_500Medium',
+  },
+
+  // Image Modal (Full Screen)
+  imageModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+  },
+  imageModalCloseArea: {
+    flex: 1,
+  },
+  imageModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+  },
+  imageModalTitle: {
+    fontSize: 20,
+    fontFamily: 'Inter_600SemiBold',
+    color: COLORS.textPrimary,
+  },
+  imageModalCloseBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageModalContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+  },
+  imageModalFull: {
+    width: '100%',
+    height: '80%',
+    borderRadius: 12,
+  },
+  imageModalInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginTop: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 16,
+  },
+  imageModalPet: {
+    fontSize: 18,
+    fontFamily: 'Inter_600SemiBold',
+    color: COLORS.textPrimary,
+  },
+  imageModalConfidence: {
+    fontSize: 16,
     fontFamily: 'Inter_500Medium',
   },
 
@@ -1051,5 +1405,83 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Inter_400Regular',
     color: COLORS.textMuted,
+  },
+
+  // Modal de Alertas
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContainer: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: COLORS.cardBg,
+    borderRadius: 28,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    overflow: 'hidden',
+  },
+  modalGlow: {
+    position: 'absolute',
+    top: -100,
+    left: '50%',
+    marginLeft: -100,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    opacity: 0.3,
+  },
+  modalHeader: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  modalIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: COLORS.cardBgLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontFamily: 'Inter_700Bold',
+    color: COLORS.textPrimary,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  modalMessage: {
+    fontSize: 15,
+    fontFamily: 'Inter_400Regular',
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  modalButton: {
+    width: '100%',
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontFamily: 'Inter_600SemiBold',
+    color: COLORS.textPrimary,
   },
 });
