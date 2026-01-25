@@ -4,13 +4,35 @@ Una aplicación React Native (Expo) para monitoreo de mascotas IoT con interfaz 
 
 ## ✨ Características
 
-- 📷 **Visualización en tiempo real** de cámara IP local
-- 🐶 **Detección de mascotas** con indicador de confianza
-- 🌡️ **Monitoreo de temperatura** con estados visuales
+### 📷 Visualización de Capturas
+- **Última detección de mascota** con IA activa
+- **Modal a pantalla completa** al tocar la imagen
+- Indicador de confianza de la detección
+- Soporte para múltiples mascotas (🐶 🐱 🐦 🐹 🐰)
+
+### 🔔 Sistema de Alertas Inteligentes
+- **Notificaciones push locales** para eventos importantes
+- **Modales animados** con vibración dentro de la app
+- Sistema de cola para múltiples alertas
+- Alertas configurables:
+  - 💧 Tanque de agua lleno
+  - 🌡️ Temperatura alta (>25°C)
+  - ⚙️ Cambio de estado de bomba
+  - 💡 Cambio de iluminación
+
+### 📊 Monitoreo en Tiempo Real
+- 🌡️ **Temperatura** con estados visuales (óptima/caliente/muy caliente)
 - 💧 **Nivel de agua** con indicadores de estado
-- ⚙️ **Control de bomba** con animaciones
+- ⚙️ **Estado de bomba** con animaciones de dispensado
+- 💡 **Control de iluminación** con indicador visual
 - 🔄 **Polling automático** cada 2 segundos
-- 📱 **Diseño responsive** y elegante
+
+### 🎨 Diseño Premium
+- **Dark Mode** elegante
+- **Bento Grid** responsive
+- Animaciones fluidas y efectos glow
+- Tipografía Inter moderna
+- Skeleton loaders durante carga
 
 ## 🛠️ Instalación
 
@@ -39,7 +61,7 @@ npx expo start
 ### Comandos de instalación en una sola línea:
 
 ```bash
-npm install axios lucide-react-native react-native-svg expo-font @expo-google-fonts/inter
+npm install axios lucide-react-native react-native-svg expo-font @expo-google-fonts/inter expo-notifications
 ```
 
 ## ⚙️ Configuración
@@ -54,9 +76,9 @@ const THINGER_TOKEN = 'TU_TOKEN_AQUI';
 
 ### Endpoint del API
 
-El endpoint está configurado para:
+El endpoint está configurado para Data Bucket de Thinger.io:
 ```
-GET https://api.thinger.io/v2/users/CDaniel/devices/servidor_python/resources/data
+GET https://api.thinger.io/v2/users/{usuario}/buckets/{bucket}/data?items=1
 ```
 
 ## 📱 Estructura del JSON esperado
@@ -68,9 +90,21 @@ GET https://api.thinger.io/v2/users/CDaniel/devices/servidor_python/resources/da
   "agua": "NORMAL",
   "temp": "24.5",
   "bomba": "OFF",
-  "imagen_url": "http://192.168.137.1:5000/static/..."
+  "luz": 0,
+  "imagen_url": "https://tu-servidor.com/imagen.jpg"
 }
 ```
+
+### Valores aceptados
+
+| Campo | Valores |
+|-------|---------|
+| `mascota` | PERRO, GATO, PAJARO, HAMSTER, CONEJO |
+| `agua` | VACIO, NORMAL, LLENO |
+| `bomba` | ON, OFF |
+| `luz` | 0 (apagado), 20 (encendido) |
+| `temp` | Número (°C) |
+| `confianza` | 0-100 (%) |
 
 ## 🎨 Diseño
 
@@ -96,16 +130,33 @@ La app utiliza un diseño **Bento Grid** con:
 
 ```
 pet-monitor/
-├── App.js              # Componente principal
+├── App.js              # Componente principal (1400+ líneas)
 ├── app.json            # Configuración de Expo
 ├── package.json        # Dependencias
 ├── babel.config.js     # Configuración de Babel
-├── assets/
-│   ├── icon.png        # Icono de la app
-│   ├── splash.png      # Pantalla de carga
-│   └── adaptive-icon.png
 └── README.md
 ```
+
+## 🔔 Sistema de Notificaciones
+
+La app incluye un sistema dual de alertas:
+
+1. **Modales Animados** - Alertas dentro de la app con:
+   - Animación de entrada/salida
+   - Vibración del dispositivo
+   - Cola de alertas múltiples
+   - Cierre automático o manual
+
+2. **Notificaciones Push Locales** - Para cuando la app está en segundo plano
+
+### Umbrales de Alerta
+
+| Evento | Condición |
+|--------|-----------|
+| Temperatura | > 25°C |
+| Agua | Estado "LLENO" |
+| Bomba | Cambio de estado |
+| Luces | Cambio de estado |
 
 ## 🚀 Scripts disponibles
 
@@ -136,16 +187,29 @@ npm run web
 ## 🐛 Solución de problemas
 
 ### La imagen de la cámara no carga
-- Verifica que tu dispositivo esté en la misma red que la cámara
-- Confirma que la URL de la imagen sea accesible
+- Verifica que la URL de la imagen sea accesible
+- Toca la imagen para verla en pantalla completa
 
 ### Error de conexión al API
 - Verifica tu token de Thinger.io
 - Comprueba tu conexión a internet
+- Revisa que el endpoint del bucket sea correcto
 
 ### Las fuentes no cargan
 - Ejecuta: `npx expo install expo-font @expo-google-fonts/inter`
 
+### Warning de expo-notifications
+- Es normal en Expo Go (SDK 53+)
+- Las notificaciones locales funcionan correctamente
+- Para push remoto, usar Development Build
+
+## 📸 Capturas de Pantalla
+
+La app incluye:
+- Dashboard principal con Bento Grid
+- Modal de imagen a pantalla completa
+- Alertas animadas con iconos
+
 ---
 
-Desarrollado con ❤️ para Pet Guardian IoT
+Desarrollado con ❤️ para Pet Guardian IoT | Expo SDK 54
