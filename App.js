@@ -496,6 +496,103 @@ const SmartAlert = ({ temp, water, hasError }) => {
 };
 
 // ============================================
+// COMPONENTE: Modal de Detalle de Sensor
+// ============================================
+const SensorDetailModal = ({ visible, onClose, sensorData }) => {
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          tension: 100,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      scaleAnim.setValue(0);
+      opacityAnim.setValue(0);
+    }
+  }, [visible]);
+
+  if (!sensorData) return null;
+
+  const { title, icon: Icon, current, previous, color, unit = '' } = sensorData;
+
+  const formatTimestamp = (ts) => {
+    if (!ts) return '--:--:--';
+    const date = new Date(ts);
+    return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  };
+
+  const formatDate = (ts) => {
+    if (!ts) return 'Sin fecha';
+    const date = new Date(ts);
+    return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity 
+        style={styles.sensorModalOverlay}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <Animated.View 
+          style={[
+            styles.sensorModalContent,
+            {
+              opacity: opacityAnim,
+              transform: [{ scale: scaleAnim }],
+            }
+          ]}
+        >
+          {/* Header */}
+          <View style={styles.sensorModalHeader}>
+            <View style={[styles.sensorModalIcon, { backgroundColor: `${color}20` }]}>
+              <Icon size={28} color={color} />
+            </View>
+            <Text style={styles.sensorModalTitle}>{title}</Text>
+            <TouchableOpacity style={styles.sensorModalClose} onPress={onClose}>
+              <X size={22} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Valor Actual */}
+          <View style={styles.sensorModalCurrent}>
+            <Text style={styles.sensorModalLabel}>Valor Actual</Text>
+            <View style={styles.sensorModalValueRow}>
+              <Text style={[styles.sensorModalValue, { color }]}>
+                {current.value}{unit}
+              </Text>
+              <Text style={[styles.sensorModalStatus, { color }]}>
+                {current.status}
+              </Text>
+            </View>
+            <Text style={styles.sensorModalTimestamp}>
+              📅 {formatDate(current.timestamp)} • ⏰ {formatTimestamp(current.timestamp)}
+            </Text>
+          </View>
+        </Animated.View>
+      </TouchableOpacity>
+    </Modal>
+  );
+};
+
+// ============================================
 // COMPONENTE: Tarjeta de Sensor Genérica
 // ============================================
 const SensorCard = ({ 
@@ -509,7 +606,8 @@ const SensorCard = ({
   glowColor,
   isAnimated,
   isLoading,
-  trend 
+  trend,
+  onPress,
 }) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0.3)).current;
@@ -559,51 +657,55 @@ const SensorCard = ({
     );
   }
 
+  const CardWrapper = onPress ? TouchableOpacity : View;
+
   return (
-    <Animated.View 
-      style={[
-        styles.sensorCard,
-        isAnimated && { transform: [{ scale: scaleAnim }] },
-      ]}
-    >
-      {/* Glow Effect */}
+    <CardWrapper activeOpacity={0.8} onPress={onPress}>
       <Animated.View 
         style={[
-          styles.sensorGlow,
-          { 
-            backgroundColor: glowColor,
-            opacity: isAnimated ? glowAnim : 0.2,
-          },
-        ]} 
-      />
+          styles.sensorCard,
+          isAnimated && { transform: [{ scale: scaleAnim }] },
+        ]}
+      >
+        {/* Glow Effect */}
+        <Animated.View 
+          style={[
+            styles.sensorGlow,
+            { 
+              backgroundColor: glowColor,
+              opacity: isAnimated ? glowAnim : 0.2,
+            },
+          ]} 
+        />
 
-      <View style={[styles.sensorIconContainer, { backgroundColor: `${color}20` }]}>
-        <Icon size={24} color={color} />
-      </View>
+        <View style={[styles.sensorIconContainer, { backgroundColor: `${color}20` }]}>
+          <Icon size={24} color={color} />
+        </View>
 
-      <Text style={styles.sensorTitle}>{title}</Text>
-      
-      <View style={styles.sensorValueContainer}>
-        <Text style={[styles.sensorValue, { color }]}>
-          {value}
-        </Text>
-        {unit && <Text style={styles.sensorUnit}>{unit}</Text>}
+        <Text style={styles.sensorTitle}>{title}</Text>
         
-        {/* Indicador de Tendencia */}
-        {trend && (
-          <View style={styles.trendContainer}>
-            {trend === 'up' && <TrendingUp size={16} color={COLORS.warning} />}
-            {trend === 'down' && <TrendingDown size={16} color={COLORS.info} />}
-            {trend === 'stable' && <Minus size={16} color={COLORS.textMuted} />}
-          </View>
-        )}
-      </View>
+        <View style={styles.sensorValueContainer}>
+          <Text style={[styles.sensorValue, { color }]}>
+            {value}
+          </Text>
+          {unit && <Text style={styles.sensorUnit}>{unit}</Text>}
+          
+          {/* Indicador de Tendencia */}
+          {trend && (
+            <View style={styles.trendContainer}>
+              {trend === 'up' && <TrendingUp size={16} color={COLORS.warning} />}
+              {trend === 'down' && <TrendingDown size={16} color={COLORS.info} />}
+              {trend === 'stable' && <Minus size={16} color={COLORS.textMuted} />}
+            </View>
+          )}
+        </View>
 
-      <View style={[styles.statusBadge, { backgroundColor: `${color}15` }]}>
-        <View style={[styles.statusDot, { backgroundColor: color }]} />
-        <Text style={[styles.statusText, { color }]}>{statusText}</Text>
-      </View>
-    </Animated.View>
+        <View style={[styles.statusBadge, { backgroundColor: `${color}15` }]}>
+          <View style={[styles.statusDot, { backgroundColor: color }]} />
+          <Text style={[styles.statusText, { color }]}>{statusText}</Text>
+        </View>
+      </Animated.View>
+    </CardWrapper>
   );
 };
 
@@ -633,6 +735,17 @@ export default function App() {
   // Estado para el Modal de Alertas
   const [alertModal, setAlertModal] = useState({ visible: false, alert: null });
   const [alertQueue, setAlertQueue] = useState([]);
+
+  // Estado para el Modal de Detalle de Sensor
+  const [sensorDetailModal, setSensorDetailModal] = useState({ visible: false, data: null });
+
+  // Historial de valores con timestamps
+  const [sensorHistory, setSensorHistory] = useState({
+    temp: { current: null, previous: null },
+    agua: { current: null, previous: null },
+    bomba: { current: null, previous: null },
+    luz: { current: null, previous: null },
+  });
   
   const prevTempRef = useRef(null);
   const lastWaterNotif = useRef(0);
@@ -667,8 +780,30 @@ export default function App() {
       const firstItem = Array.isArray(response.data) ? response.data[0] : response.data;
       // Si existe 'val' lo usamos, si no, usamos el objeto entero (tu caso actual)
       const result = firstItem?.val || firstItem;
+      const timestamp = firstItem?.ts || Date.now();
       
       console.log('✅ Datos recibidos del Bucket:', result);
+      
+      // Actualizar historial de sensores
+      setSensorHistory(prev => ({
+        temp: {
+          previous: prev.temp.current,
+          current: { value: result.temp, timestamp, status: getTempStatusText(parseFloat(result.temp)) }
+        },
+        agua: {
+          previous: prev.agua.current,
+          current: { value: result.agua, timestamp, status: getWaterStatusText(result.agua) }
+        },
+        bomba: {
+          previous: prev.bomba.current,
+          current: { value: result.bomba, timestamp, status: result.bomba === 'ON' ? 'Activa' : 'Inactiva' }
+        },
+        luz: {
+          previous: prev.luz.current,
+          current: { value: Number(result.luces) === 20 ? 'ON' : 'OFF', timestamp, status: Number(result.luces) === 20 ? 'Encendida' : 'Apagada' }
+        },
+      }));
+      
       setData(result);
       setHasError(false);
       setLastUpdate(new Date());
@@ -755,9 +890,9 @@ export default function App() {
       }
     }
 
-    // 2. Alerta de Temperatura Alta > 20°C (PRUEBA - cambiar a 25 después)
+    // 2. Alerta de Temperatura Alta > 25°C (PRUEBA - cambiar a 25 después)
     const tempVal = parseFloat(data.temp);
-    if (tempVal > 20) {
+    if (tempVal > 25) {
       if (now - lastTempNotif.current > ONE_MINUTE) {
         // Modal en app
         showAlert('temp', '🌡️ Temperatura Alta', `La temperatura ha subido a ${tempVal}°C. Verifica la ventilación.`);
@@ -779,8 +914,8 @@ export default function App() {
     prevPump.current = data.bomba;
 
     // 4. Cambio en Luces
-    if (prevLight.current !== null && prevLight.current !== data.luz) {
-      const val = Number(data.luz);
+    if (prevLight.current !== null && prevLight.current !== data.luces) {
+      const val = Number(data.luces);
       const estado = val === 20 ? 'ENCENDIDAS' : 'APAGADAS';
       const emoji = val === 20 ? '🌞' : '🌙';
       // Modal en app
@@ -788,7 +923,7 @@ export default function App() {
       // Notificación push
       sendLocalNotification('💡 Iluminación', `Las luces se han ${estado}.`);
     }
-    prevLight.current = data.luz;
+    prevLight.current = data.luces;
 
   }, [data]);
 
@@ -796,10 +931,25 @@ export default function App() {
   const temperatura = data?.temp ? parseFloat(data.temp) : null;
   const agua = data?.agua || null;
   const bomba = data?.bomba || null;
-  const luz = data?.luz || null; // Nuevo campo esperado
+  const luz = data?.luces || null; // Campo del servidor: luces
   const mascota = data?.mascota || null;
   const confianza = data?.confianza || null;
   const imagenUrl = data?.imagen_url || null;
+
+  // Funciones helper para texto de estado (usadas en historial)
+  const getTempStatusText = (temp) => {
+    if (temp === null) return 'Sin datos';
+    if (temp > 30) return 'Muy caliente';
+    if (temp > 26) return 'Templado';
+    return 'Óptimo';
+  };
+
+  const getWaterStatusText = (waterLevel) => {
+    if (waterLevel === 'NORMAL') return 'Nivel Óptimo';
+    if (waterLevel === 'LLENO') return '¡Detener Llenado!';
+    if (waterLevel === 'VACIO') return 'Vacío';
+    return 'Revisar';
+  };
 
   // Determinar estados y colores
   const getTempStatus = (temp) => {
@@ -827,6 +977,24 @@ export default function App() {
     if (lightState === null) return { color: COLORS.textMuted, text: 'Sin datos', glow: 'transparent', active: false };
     if (val === 20) return { color: '#fbbf24', text: 'Encendida', glow: 'rgba(251, 191, 36, 0.3)', active: true };
     return { color: COLORS.textMuted, text: 'Apagada', glow: 'transparent', active: false };
+  };
+
+  // Función para abrir modal de detalle de sensor
+  const openSensorDetail = (type, title, icon, unit = '') => {
+    const history = sensorHistory[type];
+    setSensorDetailModal({
+      visible: true,
+      data: {
+        title,
+        icon,
+        unit,
+        color: type === 'temp' ? tempStatus.color : 
+               type === 'agua' ? waterStatus.color : 
+               type === 'bomba' ? pumpStatus.color : lightStatus.color,
+        current: history.current || { value: '--', status: 'Sin datos', timestamp: null },
+        previous: history.previous || { value: null, status: null, timestamp: null },
+      }
+    });
   };
 
   const tempStatus = getTempStatus(temperatura);
@@ -903,6 +1071,7 @@ export default function App() {
             statusText={tempStatus.text}
             isLoading={isLoading}
             trend={tempTrend}
+            onPress={() => openSensorDetail('temp', 'Temperatura', Thermometer, '°C')}
           />
 
           {/* Nivel de Agua */}
@@ -914,6 +1083,7 @@ export default function App() {
             glowColor={waterStatus.glow}
             statusText={waterStatus.text}
             isLoading={isLoading}
+            onPress={() => openSensorDetail('agua', 'Nivel de Agua', Droplets)}
           />
 
           {/* Bomba de Agua */}
@@ -926,6 +1096,7 @@ export default function App() {
             statusText={pumpStatus.text}
             isAnimated={pumpStatus.active}
             isLoading={isLoading}
+            onPress={() => openSensorDetail('bomba', 'Bomba de Agua', Settings2)}
           />
 
           {/* Luces (Nuevo) */}
@@ -937,6 +1108,7 @@ export default function App() {
             glowColor={lightStatus.glow}
             statusText={lightStatus.text}
             isLoading={isLoading}
+            onPress={() => openSensorDetail('luz', 'Iluminación', Lightbulb)}
           />
 
           {/* Estado de Conexión */}
@@ -967,6 +1139,13 @@ export default function App() {
         visible={alertModal.visible} 
         alert={alertModal.alert} 
         onClose={closeAlertModal} 
+      />
+
+      {/* Modal de Detalle de Sensor */}
+      <SensorDetailModal
+        visible={sensorDetailModal.visible}
+        sensorData={sensorDetailModal.data}
+        onClose={() => setSensorDetailModal({ visible: false, data: null })}
       />
     </View>
   );
@@ -1206,6 +1385,140 @@ const styles = StyleSheet.create({
   confidenceText: {
     fontSize: 13,
     fontFamily: 'Inter_500Medium',
+  },
+
+  // Sensor Detail Modal
+  sensorModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  sensorModalContent: {
+    backgroundColor: COLORS.cardBg,
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    maxWidth: 340,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  sensorModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  sensorModalIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sensorModalTitle: {
+    flex: 1,
+    fontSize: 20,
+    fontFamily: 'Inter_600SemiBold',
+    color: COLORS.textPrimary,
+    marginLeft: 12,
+  },
+  sensorModalClose: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.cardBgLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sensorModalCurrent: {
+    backgroundColor: COLORS.cardBgLight,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+  },
+  sensorModalLabel: {
+    fontSize: 12,
+    fontFamily: 'Inter_500Medium',
+    color: COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  sensorModalValueRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  sensorModalValue: {
+    fontSize: 36,
+    fontFamily: 'Inter_700Bold',
+  },
+  sensorModalStatus: {
+    fontSize: 14,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  sensorModalTimestamp: {
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    color: COLORS.textMuted,
+  },
+  sensorModalDivider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginVertical: 12,
+  },
+  sensorModalPrevious: {
+    backgroundColor: COLORS.cardBgLight,
+    borderRadius: 16,
+    padding: 16,
+    opacity: 0.7,
+  },
+  sensorModalLabelSmall: {
+    fontSize: 11,
+    fontFamily: 'Inter_500Medium',
+    color: COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  sensorModalValueRowSmall: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  sensorModalValueSmall: {
+    fontSize: 22,
+    fontFamily: 'Inter_600SemiBold',
+    color: COLORS.textSecondary,
+  },
+  sensorModalStatusSmall: {
+    fontSize: 12,
+    fontFamily: 'Inter_500Medium',
+    color: COLORS.textSecondary,
+  },
+  sensorModalTimestampSmall: {
+    fontSize: 11,
+    fontFamily: 'Inter_400Regular',
+    color: COLORS.textMuted,
+  },
+  sensorModalNoData: {
+    fontSize: 14,
+    fontFamily: 'Inter_400Regular',
+    color: COLORS.textMuted,
+    fontStyle: 'italic',
+  },
+  sensorModalCaptureInfo: {
+    marginTop: 8,
+    alignItems: 'center',
+    gap: 4,
+  },
+  sensorModalCaptureText: {
+    fontSize: 14,
+    fontFamily: 'Inter_500Medium',
+    color: COLORS.textSecondary,
   },
 
   // Image Modal (Full Screen)

@@ -20,11 +20,17 @@
       }
     },
     "android": {
+      "package": "com.oscarsala04.petmonitor",
       "usesCleartextTraffic": true
     },
     "web": {},
     "plugins": [
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "51b9ef4a-b80a-4b85-8fe0-2fbfb52a1d9b"
+      }
+    }
   }
 }
